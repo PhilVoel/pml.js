@@ -1,7 +1,17 @@
 const fs = require('fs');
 
 exports.parse_file = function(file_name) {
-	return parse_lines(fs.readFileSync(file_name, 'utf8').split('\n'));
+	try {
+		return parse_lines(fs.readFileSync(file_name, 'utf8').split('\n'));
+	} catch (error) {
+		return {
+			successful: false,
+			error: {
+				type: "file_error",
+				details: error
+			}
+		}
+	}
 }
 
 function parse_lines(lines) {

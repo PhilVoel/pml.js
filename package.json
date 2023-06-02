@@ -1,6 +1,6 @@
 {
   "name": "pml.js",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A parser for PML, just another format to specify your configs in",
   "main": "index.js",
   "scripts": {

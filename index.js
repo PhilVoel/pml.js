@@ -14,7 +14,6 @@ function parse_lines(lines) {
 		const split_line = line.split('=', 2);
 		const key = split_line[0].trim();
 		const value = split_line[1].trim();
-		console.log(key, value);
 		if(key == "" || value == "") {
 			return {
 				successful: false,
@@ -41,17 +40,88 @@ function parse_lines(lines) {
 		if(!converted_value.successful) {
 			return converted_value;
 		}
-		else if(converted_value.incomplete) {
+		else if(converted_value.string) {
 			incomplete_strings.push({
 				key: key,
-				value: converted_value.result
+				inc_str: converted_value.array
 			});
 		}
 		else {
 			result[key] = converted_value.result;
 		}
 	}
-	//TODO Imcomplete strings + check circular dependencies
+	for(let i=0; i<incomplete_strings.length; i++) {
+		let names = [incomplete_strings[i].key];
+		let dependencies = incomplete_strings[i].inc_str.filter(inc_str => inc_str.type == "variable").map(inc_str => inc_str.value);
+		outer:
+		for(let j=0; j<dependencies.length; j++) {
+			if(result[dependencies[j]] === undefined) {
+				for(let k=0; k<incomplete_strings.length; k++) {
+					if (incomplete_strings[k].key == dependencies[j])
+						continue outer;
+				}
+				return {
+					successful: false,
+					error: {
+						type: "unmet_dependency",
+						details: {
+							key: incomplete_strings[i].key,
+							dependency: dependencies[j]
+						}
+					}
+				}
+			}
+		}
+		if(check_circular_dependencies(names, dependencies, incomplete_strings))
+			return {
+				successful: false,
+				error: {
+					type: "circular_dependency",
+					details: names
+				}
+			}
+	}
+	while(incomplete_strings.length > 0) {
+		let incomplete_strings2 = [];
+		for(let i=0; i<incomplete_strings.length; i++) {
+			const key = incomplete_strings[i].key;
+			const inc_str = incomplete_strings[i].inc_str;
+			let accum_str = "";
+			let split = [];
+			for(let j=0; j<inc_str.length; j++) {
+				let value = inc_str[j].value;
+				if(inc_str[j].type == "text")
+					accum_str += value;
+				else if(result[value] !== undefined)
+					accum_str += result[value];
+				else {
+					split.push({
+						value: accum_str,
+						type: "text"
+					});
+					accum_str = "";
+					split.push({
+						value: value,
+						type: "variable"
+					});
+				}
+			}
+			if(split.length == 0) {
+				result[key] = accum_str;
+			}
+			else {
+				split.push({
+					value: accum_str,
+					type: "text"
+				});
+				incomplete_strings2.push({
+					key: key,
+					inc_str: split
+				});
+			}
+		}
+		incomplete_strings = incomplete_strings2;
+	}
 	return {
 		successful: true,
 		result: result
@@ -60,16 +130,98 @@ function parse_lines(lines) {
 
 function convert_value(value, key) {
 	if(value.startsWith('"') || value.startsWith('{') && value.endsWith('"') || value.endsWith('}')) {
-		//TODO string evaluation
-		return {
-			successful: false,
-			error: {
-				type: "srings_not_yet_supported",
-				details: {
-					key: key,
-					value: value
+		value.replace("\\\"", "\"");
+		value.replace("\\\n", "\n");
+		let to_insert = "";
+		let state = "none";
+		let split = [];
+		for(let i=0; i<value.length; i++) {
+			const c = value[i];
+			if(state == "none") {
+				switch(c) {
+					case '"':
+						state = "text";
+						break;
+					case '{':
+						state = "variable";
+						break;
+					case ' ':
+						break;
+					default:
+						return {
+							successful: false,
+							error: {
+								type: "invalid_char_in_compound_string",
+								details: {
+									key: key,
+									value: value,
+									char: c
+								}
+							}
+						}
 				}
 			}
+			else if(state == "text") {
+				if(c == '"' && !to_insert.endsWith("\\")) {
+					state = "none";
+					split.push({
+						value: to_insert,
+						type: "text"
+					});
+					to_insert = "";
+				}
+				else {
+					to_insert += c;
+				}
+			}
+			else if(state == "variable") {
+				switch(c) {
+					case '}':
+						state = "none";
+						if(to_insert != "") {
+							split.push({
+								value: to_insert,
+								type: "variable"
+							});
+							to_insert = "";
+						}
+						break;
+					case ' ':
+						return {
+							successful: false,
+							error: {
+								type: "invalid_char_in_compound_string_variable",
+								details: {
+									key: key,
+									value: value,
+									char: c,
+									prev: to_insert
+								}
+							}
+						}
+					default:
+						to_insert += c;
+				}
+			}
+		}
+		if(state != "none") {
+			return {
+				successful: false,
+				error: {
+					type: "incomplete_compound_string",
+					details: {
+						key: key,
+						value: value,
+						state: state,
+						state_value: to_insert
+					}
+				}
+			}
+		}
+		return {
+			successful: true,
+			array: split,
+			string: true
 		}
 	}
 	else if(value == "true") {
@@ -131,4 +283,20 @@ function convert_value(value, key) {
 			}
 		}
 	}
+}
+
+function check_circular_dependencies(names, dependencies, incomplete_strings) {
+	for(let i=0; i<dependencies.length; i++) {
+		if (names.includes(dependencies[i]))
+			return true;
+		for(let j=0; j<incomplete_strings.length; j++) {
+			if(incomplete_strings[j].key == dependencies[i]) {
+				names.push(incomplete_strings[j].key);
+				let dependencies = incomplete_strings[j].inc_str.filter(inc_str => inc_str.type == "variable").map(inc_str => inc_str.value);
+				if(check_circular_dependencies(names, dependencies, incomplete_strings))
+					return true;
+			}
+		}
+	}
+	return false;
 }

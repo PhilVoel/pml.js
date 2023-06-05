@@ -48,7 +48,7 @@ A line of compound strings which at some point loops back to an item already in 
 Example:
 string1 = "s1" {string2}
 string2 = {string3}
-string3 = [string1] "s3"
+string3 = {string1} "s3"
 
 Obviously a string cannot contain itself, either:
 string4 = "Hello, " {string4}

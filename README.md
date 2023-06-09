@@ -36,9 +36,9 @@ Note that you can have strings consist of other values (It wouldn't even have to
 
 ## Results
 
-`parse_file()` will return an object containing a boolean `successful` and a regular object containing the actual result.
-If `successful` is `true` this means that there was no error parsing the file and you can find the successfully parsed file in the `result object`.
-Should there have been an error (in which case `successful` is `false`) you can find more info on it in the `error` object.
+`parse_file()` will return an object containing a boolean `successful` and a regular object containing the actual result.\
+If `successful` is `true` this means that there was no error parsing the file and you can find the successfully parsed file in the `result object`.\
+Should there have been an error (in which case `successful` is `false`) you can find more info on it in the `error` object.\
 An error object contains two values: `type`, a string containing an identifier for the error, and `details`, containing more info on the error. The specifics of `details` depend on the error type.
 The following lists all possible error types as well as what `details` includes.
 

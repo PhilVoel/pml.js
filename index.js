@@ -250,7 +250,6 @@ function convert_value(value, key) {
 		const backup = value;
 		if(value.startsWith("("))
 			value = value.split(")", 2)[1].trim();
-		let error = false;
 		let float = false;
 		for(let i=0; i<value.length; i++) {
 			const char = value[i];

@@ -1,8 +1,8 @@
-const fs = require('fs');
+import { readFileSync } from 'fs';
 
-exports.parse_file = function(file_name) {
+export function parse_file(file_name) {
 	try {
-		return parse_lines(fs.readFileSync(file_name, 'utf8').split('\n'));
+		return parse_lines(readFileSync(file_name, 'utf8').split('\n'));
 	} catch (error) {
 		return {
 			successful: false,
